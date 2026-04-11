@@ -1,0 +1,884 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SlimJoy — Doctor Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+:root{
+  --am:#EF9F27;--aml:#FAEEDA;--amd:#854F0B;--amdk:#412402;
+  --cr:#FFFAF5;--g1:#F5F4F0;--g2:#D3D1C7;--g3:#888780;
+  --gn:#1D9E75;--gnl:#E1F5EE;--rd:#E24B4A;--rdl:#FCEBEB;
+  --bl:#E6F1FB;--bld:#185FA5;--fn:'Prompt',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--fn);background:#F8F7F2;min-height:100vh}
+
+/* PIN */
+.pin-overlay{position:fixed;inset:0;background:rgba(65,36,2,.7);z-index:999;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(6px)}
+.pin-box{background:#fff;border-radius:24px;padding:32px 28px;width:320px;text-align:center;box-shadow:0 24px 64px rgba(0,0,0,.25)}
+.pin-icon{width:60px;height:60px;border-radius:50%;background:var(--aml);display:flex;align-items:center;justify-content:center;margin:0 auto 16px}
+.pin-icon svg{width:28px;height:28px}
+.pin-title{font-size:20px;font-weight:600;color:var(--amdk);margin-bottom:6px}
+.pin-sub{font-size:15px;color:var(--amd);opacity:.75;margin-bottom:22px}
+.pin-dots{display:flex;gap:14px;justify-content:center;margin-bottom:22px}
+.pin-dot{width:16px;height:16px;border-radius:50%;border:2px solid var(--am);background:transparent;transition:background .15s}
+.pin-dot.filled{background:var(--am)}
+.pin-numpad{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px}
+.pin-btn{padding:16px;border-radius:14px;border:none;background:var(--g1);font-size:20px;font-weight:600;font-family:var(--fn);color:var(--amdk);cursor:pointer;transition:background .15s}
+.pin-btn:hover{background:var(--aml)}
+.pin-btn:active{transform:scale(.94)}
+.pin-err{font-size:13px;color:var(--rd);font-weight:600;min-height:18px;margin-bottom:8px;opacity:0;transition:opacity .2s}
+.pin-err.show{opacity:1}
+@keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-8px)}40%{transform:translateX(8px)}60%{transform:translateX(-5px)}80%{transform:translateX(5px)}}
+
+/* DASHBOARD */
+.doc{max-width:1100px;margin:0 auto;padding:18px 16px 50px}
+.doc-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px}
+.doc-brand{display:flex;align-items:center;gap:10px}
+.doc-bname{font-size:20px;font-weight:600;color:#2C2C2A}
+.doc-bsub{font-size:14px;color:var(--g3);margin-top:2px}
+.live-pill{display:flex;align-items:center;gap:6px;background:var(--gnl);border-radius:20px;padding:6px 14px;font-size:14px;color:#27500A;font-weight:600}
+.ldot{width:7px;height:7px;border-radius:50%;background:#3B6D11;animation:bk 1.4s infinite}
+@keyframes bk{0%,100%{opacity:1}50%{opacity:.25}}
+.sum4{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px}
+.sm{background:#fff;border-radius:12px;padding:14px 16px;border:.5px solid #E8E6E0}
+.sm-l{font-size:14px;color:var(--g3);margin-bottom:3px}
+.sm-v{font-size:26px;font-weight:600;color:#2C2C2A}
+.sm-s{font-size:13px;color:var(--g3);margin-top:3px}
+.sm-gd{color:var(--gn)}.sm-wn{color:var(--am)}.sm-al{color:var(--rd)}
+.two{display:grid;grid-template-columns:340px 1fr;gap:12px;margin-bottom:12px}
+.dc{background:#fff;border:.5px solid #E8E6E0;border-radius:14px;padding:14px 16px}
+.dc-t{font-size:14px;font-weight:600;color:var(--g3);letter-spacing:.07em;margin-bottom:12px}
+.pt-row{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:.5px solid #F0EEE8;cursor:pointer;transition:background .15s}
+.pt-row:last-child{border-bottom:none}
+.pt-row:hover{background:#FAFAF7;margin:0 -16px;padding:9px 16px;border-radius:10px}
+.pt-row.sel{background:var(--aml);margin:0 -16px;padding:9px 16px;border-radius:10px}
+.dav{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;flex-shrink:0}
+.dao{background:var(--aml);color:var(--amd)}.dab{background:var(--bl);color:var(--bld)}.dag{background:var(--gnl);color:#3B6D11}
+.pt-nm{font-size:14px;font-weight:600;color:#2C2C2A}
+.pt-mt{font-size:13px;color:var(--g3);margin-top:1px}
+.bdg{display:inline-flex;align-items:center;padding:3px 8px;border-radius:20px;font-size:12px;font-weight:600}
+.bg{background:var(--gnl);color:#27500A}.ba{background:var(--aml);color:var(--amd)}.br{background:var(--rdl);color:#A32D2D}.bb{background:var(--bl);color:var(--bld)}
+.nbdg{background:var(--am);color:#fff;font-size:12px;padding:3px 8px;border-radius:20px;font-weight:600;animation:pu 1.5s infinite}
+@keyframes pu{0%,100%{opacity:1}50%{opacity:.5}}
+.feed{display:flex;flex-direction:column;gap:7px;max-height:320px;overflow-y:auto}
+.fi{display:flex;gap:10px;align-items:flex-start;padding:9px 11px;background:#F5F4F0;border-radius:10px}
+.fi.new{background:var(--aml);border:.5px solid #FAC775}
+.fi-t{font-size:13px;color:var(--g3);white-space:nowrap;margin-top:1px;min-width:60px}
+.fi-pt{font-size:13px;font-weight:600;color:#2C2C2A}
+.fi-d{font-size:13px;color:var(--g3);margin-top:2px}
+.det{background:#fff;border:.5px solid #E8E6E0;border-radius:14px;padding:14px 16px;margin-bottom:12px}
+.det-hd{display:flex;align-items:center;gap:12px;padding-bottom:12px;border-bottom:.5px solid #F0EEE8;margin-bottom:12px}
+.det-av{width:46px;height:46px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:600}
+.s4{display:grid;grid-template-columns:repeat(4,1fr);gap:9px;margin-bottom:14px}
+.s4b{background:#F5F4F0;border-radius:9px;padding:10px 12px}
+.s4l{font-size:13px;color:var(--g3);margin-bottom:3px}
+.s4v{font-size:18px;font-weight:600;color:#2C2C2A}
+.s4c{font-size:13px;margin-top:2px}
+.dch{position:relative;width:100%;height:140px;margin-bottom:12px}
+.div-line{border:none;border-top:.5px solid #F0EEE8;margin:12px 0}
+.sec-sm{font-size:13px;font-weight:600;color:var(--g3);letter-spacing:.08em;margin:10px 0 7px}
+.edit-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-bottom:10px}
+.ie-lbl{font-size:13px;color:var(--g3);margin-bottom:4px}
+.ie{border:.5px solid #E8E6E0;border-radius:9px;padding:8px 10px;font-size:15px;font-family:var(--fn);background:#fff;color:#2C2C2A;width:100%;outline:none}
+.ie:focus{border-color:var(--am)}
+.de-bts{display:flex;gap:8px}
+.bt-am{background:var(--am);color:#fff;border:none;padding:9px 16px;border-radius:9px;font-size:14px;font-family:var(--fn);cursor:pointer;font-weight:600}
+.bt-am:hover{background:var(--amd)}
+.bt-ol{background:transparent;border:.5px solid #E8E6E0;padding:9px 16px;border-radius:9px;font-size:14px;cursor:pointer;color:#2C2C2A;font-family:var(--fn)}
+.bt-ol:hover{background:#F5F4F0}
+.ec{display:none;margin-top:8px;font-size:13px;color:var(--gn);font-weight:600}
+
+/* MODALS */
+.modal-overlay{position:fixed;inset:0;background:rgba(65,36,2,.45);z-index:500;display:none;align-items:center;justify-content:center;backdrop-filter:blur(4px)}
+.modal-overlay.show{display:flex}
+.modal-box{background:#fff;border-radius:20px;padding:28px 24px;width:380px;max-width:95vw;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.18)}
+.modal-title{font-size:18px;font-weight:600;color:var(--amdk);margin-bottom:16px}
+.f-row{margin-bottom:12px}
+.f-lbl{font-size:14px;color:var(--amd);font-weight:500;margin-bottom:4px}
+.f-inp{width:100%;border:1.5px solid #FAC775;border-radius:10px;padding:9px 12px;font-size:16px;font-family:var(--fn);color:var(--amdk);background:#fff;outline:none}
+.f-inp:focus{border-color:var(--am)}
+.modal-bts{display:flex;gap:9px;margin-top:16px}
+.bt-c{flex:1;padding:11px;border-radius:10px;border:1.5px solid #E8E6E0;background:transparent;font-size:16px;font-family:var(--fn);color:var(--g3);cursor:pointer}
+.bt-s{flex:1;padding:11px;border-radius:10px;border:none;background:var(--am);font-size:16px;font-family:var(--fn);color:#fff;font-weight:600;cursor:pointer}
+
+/* RELOAD BTN */
+.reload-btn{display:flex;align-items:center;gap:6px;background:var(--bl);border:none;color:var(--bld);padding:7px 14px;border-radius:10px;font-size:14px;font-family:var(--fn);cursor:pointer;font-weight:600}
+.reload-btn:hover{background:#C8DFF8}
+.reload-btn.spinning svg{animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* Appt badge in detail */
+.appt-box{background:var(--aml);border-radius:10px;padding:11px 14px;margin-bottom:9px}
+.appt-box-alert{background:var(--rdl);border-radius:10px;padding:11px 14px;margin-bottom:9px}
+
+/* Chart toggle */
+.ch-tg{display:flex;gap:5px;margin-bottom:10px}
+.ctog{padding:5px 11px;border-radius:20px;font-size:13px;cursor:pointer;border:.5px solid #E8E6E0;background:#F5F4F0;color:var(--g3);font-family:var(--fn)}
+.ctog.active{background:var(--am);color:#fff;border-color:var(--am)}
+
+/* Drug timeline */
+.drug-tl{border-left:2px solid #FAC775;padding-left:13px;margin:4px 0 0 6px}
+.dtl-item{position:relative;margin-bottom:10px;padding-bottom:10px;border-bottom:.5px dashed #F0EEE8}
+.dtl-item:last-child{margin-bottom:0;padding-bottom:0;border-bottom:none}
+.dtl-dot{position:absolute;left:-19px;top:4px;width:8px;height:8px;border-radius:50%;background:var(--am)}
+.dtl-dot.start{background:var(--gn)}
+.dtl-date{font-size:12px;color:var(--g3)}
+.dtl-drug{font-size:14px;font-weight:600;color:#2C2C2A}
+.dtl-dose{font-size:13px;color:var(--amd)}
+.dtl-badge{display:inline-block;font-size:11px;padding:2px 6px;border-radius:6px;font-weight:600;margin-left:5px}
+.dtl-up{background:#FFF3E0;color:#B45309}
+.dtl-new{background:var(--gnl);color:#27500A}
+
+/* Metrics history table */
+.met-tbl{width:100%;border-collapse:collapse;font-size:13px}
+.met-tbl th{background:#F5F4F0;color:var(--g3);font-weight:600;padding:7px 9px;text-align:center;font-size:12px;border-bottom:1px solid #E8E6E0}
+.met-tbl td{padding:7px 9px;text-align:center;border-bottom:.5px solid #F0EEE8;color:#2C2C2A;font-size:13px}
+.met-tbl tr:last-child td{border-bottom:none}
+.met-tbl tr:hover td{background:#FAFAF7}
+.dn{color:var(--gn);font-weight:600}
+.up{color:var(--rd);font-weight:600}
+.eq{color:var(--g3)}
+.drug-chip{display:inline-block;background:var(--aml);color:var(--amd);border-radius:6px;padding:2px 6px;font-size:11px;font-weight:600}
+.no-data-row{text-align:center;color:var(--g3);font-size:14px;padding:16px 0}
+
+/* Collapsible section toggle */
+.coll-hd{display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;padding:4px 0}
+.coll-hd:hover .coll-arr{opacity:1}
+.coll-arr{font-size:13px;color:var(--g3);opacity:.6;transition:transform .2s}
+.coll-arr.open{transform:rotate(180deg)}
+</style>
+</head>
+<body>
+
+<!-- PIN LOCK -->
+<div class="pin-overlay" id="pin-overlay">
+  <div class="pin-box">
+    <div class="pin-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#EF9F27" stroke-width="2" stroke-linecap="round">
+        <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+      </svg>
+    </div>
+    <div class="pin-title">SlimJoy · Doctor</div>
+    <div class="pin-sub">กรอก PIN 4 หลักสำหรับแพทย์</div>
+    <div class="pin-dots">
+      <div class="pin-dot" id="pd0"></div><div class="pin-dot" id="pd1"></div>
+      <div class="pin-dot" id="pd2"></div><div class="pin-dot" id="pd3"></div>
+    </div>
+    <div class="pin-err" id="pin-err">PIN ไม่ถูกต้อง กรุณาลองใหม่</div>
+    <div class="pin-numpad">
+      <button class="pin-btn" onclick="pinPress('1')">1</button><button class="pin-btn" onclick="pinPress('2')">2</button><button class="pin-btn" onclick="pinPress('3')">3</button>
+      <button class="pin-btn" onclick="pinPress('4')">4</button><button class="pin-btn" onclick="pinPress('5')">5</button><button class="pin-btn" onclick="pinPress('6')">6</button>
+      <button class="pin-btn" onclick="pinPress('7')">7</button><button class="pin-btn" onclick="pinPress('8')">8</button><button class="pin-btn" onclick="pinPress('9')">9</button>
+      <button class="pin-btn" onclick="pinClear()">✕</button><button class="pin-btn" onclick="pinPress('0')">0</button><button class="pin-btn" onclick="pinDel()">⌫</button>
+    </div>
+  </div>
+</div>
+
+<!-- DASHBOARD -->
+<div class="doc" id="dashboard" style="display:none">
+  <div class="doc-top">
+    <div class="doc-brand">
+      <svg width="30" height="30" viewBox="0 0 64 64" fill="none"><ellipse cx="32" cy="38" rx="15" ry="12" fill="#FAC775"/><rect x="21" y="33" width="22" height="3.5" rx="1.8" fill="#412402" opacity=".65"/><rect x="21" y="40" width="22" height="3.5" rx="1.8" fill="#412402" opacity=".65"/><ellipse cx="32" cy="28" rx="8.5" ry="7.5" fill="#FAC775"/><ellipse cx="28.5" cy="26.5" rx="2.2" ry="2.8" fill="#412402" opacity=".85"/><ellipse cx="35.5" cy="26.5" rx="2.2" ry="2.8" fill="#412402" opacity=".85"/><ellipse cx="28" cy="25.5" rx=".9" ry="1.1" fill="#fff"/><ellipse cx="35" cy="25.5" rx=".9" ry="1.1" fill="#fff"/><path d="M30 31.5 Q32 33 34 31.5" stroke="#854F0B" stroke-width=".8" stroke-linecap="round" fill="none" opacity=".7"/></svg>
+      <div>
+        <div class="doc-bname">SlimJoy · Doctor Dashboard</div>
+        <div class="doc-bsub">พญ.ประพิมพร เกรียงวัฒนพงษ์ · รพ.บ้านโป่ง · <span id="dr-clock">--:--:--</span></div>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <button class="reload-btn" id="reload-btn" onclick="loadAllData()">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+        รีเฟรช
+      </button>
+      <div class="live-pill"><div class="ldot"></div>Live</div>
+    </div>
+  </div>
+
+  <div class="sum4">
+    <div class="sm"><div class="sm-l">ผู้ป่วยทั้งหมด</div><div class="sm-v" id="dr-total">0</div><div class="sm-s">ใช้ยา GLP-1</div></div>
+    <div class="sm"><div class="sm-l">บันทึกวันนี้</div><div class="sm-v sm-gd" id="dr-today">0</div><div class="sm-s">ส่งข้อมูลแล้ว</div></div>
+    <div class="sm"><div class="sm-l">น้ำหนักลดเฉลี่ย</div><div class="sm-v sm-gd" id="dr-avg">--</div><div class="sm-s">จากทุกเคส</div></div>
+    <div class="sm"><div class="sm-l">นัดใกล้ถึง</div><div class="sm-v sm-wn" id="dr-alert">0</div><div class="sm-s">ภายใน 7 วัน</div></div>
+  </div>
+
+  <div class="two">
+    <!-- รายชื่อผู้ป่วย -->
+    <div class="dc">
+      <div class="dc-t" style="display:flex;justify-content:space-between;align-items:center">
+        <span>รายชื่อผู้ป่วย</span>
+        <button onclick="openAddModal()" style="background:var(--am);color:#fff;border:none;padding:4px 12px;border-radius:8px;font-size:13px;font-family:var(--fn);cursor:pointer;font-weight:600">+ เพิ่ม</button>
+      </div>
+      <div id="dr-pt-list" style="margin-top:8px">
+        <div style="text-align:center;padding:24px 0;color:var(--g3);font-size:15px">⏳ กำลังโหลด...</div>
+      </div>
+    </div>
+    <!-- Feed -->
+    <div class="dc">
+      <div class="dc-t" style="display:flex;justify-content:space-between;align-items:center">
+        <span>บันทึกล่าสุดจาก Google Sheets</span>
+        <span style="font-size:12px;color:var(--g3)" id="last-update">--</span>
+      </div>
+      <div class="feed" id="dr-feed">
+        <div style="text-align:center;padding:24px 0;color:var(--g3);font-size:15px">⏳ กำลังโหลด...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Detail panel -->
+  <div class="det" id="dr-detail" style="display:none">
+    <div class="det-hd">
+      <div class="det-av dao" id="dr-av">?</div>
+      <div style="flex:1">
+        <div style="font-size:18px;font-weight:600;color:#2C2C2A" id="dr-nm">--</div>
+        <div style="font-size:13px;color:var(--g3);margin-top:2px" id="dr-mt">--</div>
+      </div>
+      <span class="bdg bg" id="dr-st">ปกติ</span>
+    </div>
+    <div class="s4" id="dr-stats"></div>
+
+    <!-- Chart with toggle -->
+    <div class="ch-tg">
+      <button class="ctog active" onclick="switchDrChart('weight',this)">น้ำหนัก</button>
+      <button class="ctog" onclick="switchDrChart('waist',this)">รอบเอว</button>
+      <button class="ctog" onclick="switchDrChart('bmi',this)">BMI</button>
+    </div>
+    <div class="dch"><canvas id="drChart"></canvas></div>
+
+    <div class="div-line"></div>
+    <div class="sec-sm">📅 นัดหมาย</div>
+    <div id="dr-appt-area"></div>
+    <div style="display:flex;gap:8px;margin-bottom:12px">
+      <button class="bt-am" onclick="openApptModal()" style="font-size:14px">📅 กำหนด/แก้ไขนัด</button>
+      <button class="bt-ol" id="cancel-appt-btn" onclick="cancelAppt()" style="display:none;font-size:14px">ยกเลิกนัด</button>
+    </div>
+
+    <div class="div-line"></div>
+    <!-- Drug history -->
+    <div class="coll-hd" onclick="toggleColl('drug-hist-body','drug-arr')">
+      <div class="sec-sm" style="margin:0">💊 ประวัติการปรับยา</div>
+      <span class="coll-arr open" id="drug-arr">▼</span>
+    </div>
+    <div id="drug-hist-body" style="margin-top:8px;margin-bottom:12px">
+      <div class="drug-tl" id="dr-drug-tl">
+        <div class="no-data-row">ยังไม่มีข้อมูลการปรับยา</div>
+      </div>
+    </div>
+
+    <div class="div-line"></div>
+    <!-- Metrics history table -->
+    <div class="coll-hd" onclick="toggleColl('metrics-hist-body','met-arr')">
+      <div class="sec-sm" style="margin:0">📊 ประวัติน้ำหนัก / BMI / รอบเอว</div>
+      <span class="coll-arr open" id="met-arr">▼</span>
+    </div>
+    <div id="metrics-hist-body" style="margin-top:8px;margin-bottom:12px;overflow-x:auto">
+      <table class="met-tbl" id="dr-met-tbl">
+        <thead><tr><th>วันที่</th><th>น้ำหนัก (kg)</th><th>Δ น้ำหนัก</th><th>BMI</th><th>รอบเอว (cm)</th><th>Δ เอว</th><th>ยา / ขนาด</th></tr></thead>
+        <tbody id="dr-met-body"><tr><td colspan="7" class="no-data-row">ยังไม่มีข้อมูล</td></tr></tbody>
+      </table>
+    </div>
+
+    <div class="div-line"></div>
+    <div class="sec-sm">แก้ไขข้อมูล</div>
+    <div class="edit-grid">
+      <div><div class="ie-lbl">น้ำหนัก (kg)</div><input class="ie" type="number" id="dr-ew" step="0.1"></div>
+      <div><div class="ie-lbl">รอบเอว (cm)</div><input class="ie" type="number" id="dr-ewst" step="0.5"></div>
+      <div><div class="ie-lbl">ส่วนสูง (cm)</div><input class="ie" type="number" id="dr-eht" step="1"></div>
+      <div><div class="ie-lbl">ขนาดยา</div><select class="ie" id="dr-edose"><option>0.25</option><option>0.5</option><option>1.0</option><option>1.7</option><option>2.4</option><option>5</option><option>10</option><option>15</option></select></div>
+      <div><div class="ie-lbl">ชนิดยา</div><select class="ie" id="dr-edrug"><option>Wegovy</option><option>Ozempic</option><option>Mounjaro</option><option>Saxenda</option></select></div>
+      <div><div class="ie-lbl">สถานะ</div><select class="ie" id="dr-estat"><option>ปกติ</option><option>ติดตาม</option><option>นัดใกล้ถึง</option></select></div>
+    </div>
+    <div class="de-bts">
+      <button class="bt-am" onclick="drSave()">💾 บันทึกการแก้ไข</button>
+    </div>
+    <div class="ec" id="dr-ec"></div>
+  </div>
+</div>
+
+<!-- ADD PATIENT MODAL -->
+<div class="modal-overlay" id="add-modal">
+  <div class="modal-box">
+    <div class="modal-title">➕ เพิ่มผู้ป่วยใหม่</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div class="f-row" style="grid-column:1/-1"><div class="f-lbl">ชื่อ-นามสกุล *</div><input class="f-inp" id="add-nm" placeholder="กรอกชื่อผู้ป่วย"></div>
+      <div class="f-row"><div class="f-lbl">HN *</div><input class="f-inp" id="add-hn" placeholder="เช่น 12345"></div>
+      <div class="f-row"><div class="f-lbl">วันเริ่มยา</div><input type="date" class="f-inp" id="add-since"></div>
+      <div class="f-row"><div class="f-lbl">ชนิดยา</div><select class="f-inp" id="add-drug"><option>Wegovy</option><option>Ozempic</option><option>Mounjaro</option><option>Saxenda</option></select></div>
+      <div class="f-row"><div class="f-lbl">ขนาดยา (mg)</div><select class="f-inp" id="add-dose"><option>0.25</option><option>0.5</option><option>1.0</option><option>1.7</option><option>2.4</option><option>5</option><option>10</option><option>15</option></select></div>
+      <div class="f-row"><div class="f-lbl">น้ำหนักเริ่มต้น (kg) *</div><input class="f-inp" type="number" id="add-sw" placeholder="90.0" step="0.1"></div>
+      <div class="f-row"><div class="f-lbl">ส่วนสูง (cm)</div><input class="f-inp" type="number" id="add-ht" placeholder="165" step="1"></div>
+      <div class="f-row"><div class="f-lbl">รอบเอวเริ่มต้น (cm)</div><input class="f-inp" type="number" id="add-swst" placeholder="95" step="0.5"></div>
+    </div>
+    <div id="add-err" style="color:var(--rd);font-size:13px;margin-top:4px;display:none">กรุณากรอกข้อมูลที่มี *</div>
+    <div class="modal-bts">
+      <button class="bt-c" onclick="closeAddModal()">ยกเลิก</button>
+      <button class="bt-s" onclick="saveNewPatient()">เพิ่มผู้ป่วย</button>
+    </div>
+  </div>
+</div>
+
+<!-- APPOINTMENT MODAL -->
+<div class="modal-overlay" id="appt-modal">
+  <div class="modal-box" style="width:360px">
+    <div class="modal-title">📅 กำหนดนัดหมาย</div>
+    <div class="f-lbl" id="appt-for" style="margin-bottom:14px;color:var(--amd)">ผู้ป่วย: --</div>
+    <div class="f-row"><div class="f-lbl">วันนัด</div><input type="date" id="appt-date-inp" class="f-inp"></div>
+    <div class="f-row"><div class="f-lbl">หมายเหตุ/คำแนะนำ</div><input type="text" id="appt-note-inp" class="f-inp" placeholder="เช่น ตรวจ HbA1C, ชั่งน้ำหนัก"></div>
+    <div class="modal-bts">
+      <button class="bt-c" onclick="closeApptModal()">ยกเลิก</button>
+      <button class="bt-s" onclick="saveAppt()">บันทึกนัด</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbxZlYe6UE7Ip96EDp-hU8DrPs3dKZlTmJ9rgm036ZNdYm60QbAigMBt-VQFIyA242fR/exec';
+const DR_PIN = '4313'; // ← เปลี่ยน PIN ได้ที่นี่
+const THM = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+
+// แปลง YYYY-MM-DD → Date แบบ local ป้องกัน UTC offset คลาดวัน
+function parseLocalDate(s){
+  if(!s) return new Date(NaN);
+  const p = s.split('-');
+  if(p.length===3) return new Date(parseInt(p[0]), parseInt(p[1])-1, parseInt(p[2]));
+  return new Date(s);
+}
+
+let pinInput = '';
+let DR_PTS = []; // {nm,hn,drug,dose,since,sw,cw,ht,swst,cwst,ws,wst,lb,appt}
+let APPTS = [];  // จาก Google Sheets
+let LOGS = [];   // บันทึกทั้งหมดจาก Sheets
+let drSel = -1;
+let drChart = null;
+let drChartMode = 'weight';
+
+// ── PIN ────────────────────────────────────────────────────────────────────
+function pinPress(n){
+  if(pinInput.length>=4) return;
+  pinInput+=n; updateDots();
+  if(pinInput.length===4) checkPin();
+}
+function pinDel(){ pinInput=pinInput.slice(0,-1); updateDots(); clearPinErr(); }
+function pinClear(){ pinInput=''; updateDots(); clearPinErr(); }
+function updateDots(){ for(let i=0;i<4;i++) document.getElementById('pd'+i).classList.toggle('filled',i<pinInput.length); }
+function checkPin(){
+  if(pinInput===DR_PIN){
+    document.getElementById('pin-overlay').style.display='none';
+    document.getElementById('dashboard').style.display='block';
+    loadAllData();
+    setInterval(()=>{
+      const t=new Date();
+      document.getElementById('dr-clock').textContent=t.getHours()+':'+String(t.getMinutes()).padStart(2,'0')+':'+String(t.getSeconds()).padStart(2,'0');
+    },1000);
+    setInterval(loadAllData, 30000); // auto-refresh ทุก 30 วิ
+  } else {
+    document.getElementById('pin-err').classList.add('show');
+    document.getElementById('pin-overlay').querySelector('.pin-box').style.animation='shake .4s ease';
+    setTimeout(()=>{ pinInput=''; updateDots(); document.getElementById('pin-overlay').querySelector('.pin-box').style.animation=''; },600);
+  }
+}
+function clearPinErr(){ document.getElementById('pin-err').classList.remove('show'); }
+
+// ── LOAD DATA FROM GOOGLE SHEETS ──────────────────────────────────────────
+async function loadAllData(){
+  const btn = document.getElementById('reload-btn');
+  btn.classList.add('spinning');
+  try {
+    const [logRes, apptRes] = await Promise.all([gasGet('getAll'), gasGet('getAppts')]);
+    LOGS = logRes.data || [];
+    APPTS = apptRes.data || [];
+    processDrData();
+    renderFeed();
+    renderDrList();
+    updateSummary();
+    document.getElementById('last-update').textContent = 'อัปเดต '+new Date().getHours()+':'+String(new Date().getMinutes()).padStart(2,'0');
+  } catch(e){
+    document.getElementById('last-update').textContent = '⚠️ ไม่มีอินเทอร์เน็ต';
+  }
+  btn.classList.remove('spinning');
+}
+
+function processDrData(){
+  // สร้าง/อัปเดต DR_PTS จาก LOGS
+  const ptMap = {};
+  LOGS.forEach(row=>{
+    const nm = row['ชื่อ']; if(!nm) return;
+    if(!ptMap[nm]){
+      ptMap[nm] = {
+        nm, hn:'(คนไข้)', drug:row['ยา']||'Wegovy', dose:row['ขนาดยา(mg)']||'--',
+        since:'', sw:parseFloat(row['น้ำหนักเริ่ม'])||0,
+        cw:0, ht:parseFloat(row['ส่วนสูง(cm)'])||0,
+        swst:parseFloat(row['เอวเริ่ม'])||0, cwst:0,
+        ws:[], wst:[], lb:[], lastTime:null, logs:[], allLogs:[],
+        firstLogDate:'' // วันที่บันทึกครั้งแรกสุด
+      };
+    }
+    const p = ptMap[nm];
+    const w = parseFloat(row['น้ำหนัก(kg)']);
+    const wst = parseFloat(row['รอบเอว(cm)']);
+    const t = new Date(row['เวลา']);
+    if(w>0){
+      const lbl = THM[t.getMonth()];
+      if(p.lb[p.lb.length-1]!==lbl){ p.lb.push(lbl); p.ws.push(w); if(wst>0) p.wst.push(wst); }
+      else{ p.ws[p.ws.length-1]=w; if(wst>0&&p.wst.length) p.wst[p.wst.length-1]=wst; }
+      p.cw = w; if(wst>0) p.cwst = wst;
+      if(!p.sw) p.sw = w;
+      if(row['ส่วนสูง(cm)']&&parseFloat(row['ส่วนสูง(cm)'])>=100) p.ht=parseFloat(row['ส่วนสูง(cm)']);
+      // อัปเดต drug/dose ล่าสุด
+      if(row['ยา']) p.drug = row['ยา'];
+      if(row['ขนาดยา(mg)']) p.dose = row['ขนาดยา(mg)'];
+      // track วันที่แรกสุด (logs เรียง asc ตอนนี้ยังไม่ sort แต่เอาเล็กสุด)
+      const dateISO = row['วันที่'] || t.toISOString().split('T')[0];
+      if(!p.firstLogDate || dateISO < p.firstLogDate) p.firstLogDate = dateISO;
+      p.lastTime = t;
+      // เก็บ per-row log พร้อม drug/dose
+      p.allLogs.push({
+        t, dateStr: t.toISOString().split('T')[0],
+        w, wst: wst>0?wst:0,
+        drug: row['ยา']||'', dose: row['ขนาดยา(mg)']||'',
+        note: row['หมายเหตุ']||''
+      });
+      p.logs.unshift({t,w,wst,note:row['หมายเหตุ']||''});
+    }
+  });
+  // เรียง allLogs เก่า→ใหม่
+  Object.values(ptMap).forEach(p=>{
+    p.allLogs.sort((a,b)=>a.t-b.t);
+    // ถ้ายังไม่มี since ให้ใช้วันที่ log แรกสุดเป็น fallback
+    if(!p.since && p.firstLogDate) p.since = p.firstLogDate;
+    // ถ้ายังไม่มี sw ให้ใช้ w ของ log แรกสุด
+    if(!p.sw && p.allLogs.length) p.sw = p.allLogs[0].w;
+    if(!p.swst && p.allLogs.length && p.allLogs[0].wst>0) p.swst = p.allLogs[0].wst;
+  });
+  // merge กับ DR_PTS ที่หมอเพิ่มเอง
+  Object.values(ptMap).forEach(p=>{
+    const idx = DR_PTS.findIndex(x=>x.nm===p.nm);
+    if(idx>=0){ Object.assign(DR_PTS[idx], p); }
+    else DR_PTS.push(p);
+  });
+  // attach appointments
+  DR_PTS.forEach(p=>{
+    const appts = APPTS.filter(a=>a['ชื่อคนไข้']===p.nm);
+    p.appt = appts.length ? appts[appts.length-1] : null;
+    if(!p.allLogs) p.allLogs = [];
+  });
+}
+
+function renderDrList(){
+  const list = document.getElementById('dr-pt-list');
+  if(!DR_PTS.length){
+    list.innerHTML='<div style="text-align:center;padding:24px 0;color:var(--g3);font-size:15px">ยังไม่มีข้อมูลผู้ป่วย<br><small>กดรีเฟรช หรือกด "+ เพิ่ม"</small></div>'; return;
+  }
+  const today = new Date(); today.setHours(0,0,0,0);
+  list.innerHTML = '';
+  DR_PTS.forEach((p,i)=>{
+    let badge = '';
+    if(p.appt){
+      const d = parseLocalDate(p.appt['วันนัด']); d.setHours(0,0,0,0);
+      const diff = Math.ceil((d-today)/(1000*60*60*24));
+      if(diff<0) badge='<span class="bdg br">เลยนัด</span>';
+      else if(diff===0) badge='<span class="nbdg">วันนัด!</span>';
+      else if(diff<=7) badge='<span class="bdg ba">นัดใกล้</span>';
+      else badge='<span class="bdg bg">มีนัด</span>';
+    }
+    // ตรวจว่าส่งวันนี้ไหม
+    let isNew = false;
+    if(p.lastTime){
+      const lt = new Date(p.lastTime); lt.setHours(0,0,0,0);
+      if(lt.getTime()===today.getTime()) isNew=true;
+    }
+    const avcs=['dao','dab','dag'];
+    const avc = avcs[i%3];
+    const av = p.nm.substring(0,2);
+    const row = document.createElement('div');
+    row.className = 'pt-row'+(drSel===i?' sel':'');
+    row.onclick = ()=>drSelect(row,i);
+    row.innerHTML = `<div class="dav ${avc}">${av}</div><div style="flex:1"><div class="pt-nm">${p.nm}</div><div class="pt-mt">HN:${p.hn} · ${p.drug} ${p.dose!=='--'?p.dose+' mg':'--'}${isNew?' · <span style="color:var(--gn)">ส่งวันนี้</span>':''}</div></div>${badge}`;
+    list.appendChild(row);
+  });
+}
+
+function updateSummary(){
+  document.getElementById('dr-total').textContent = DR_PTS.length;
+  const today = new Date(); today.setHours(0,0,0,0);
+  let todayCount = 0, alertCount = 0;
+  DR_PTS.forEach(p=>{
+    if(p.lastTime){ const lt=new Date(p.lastTime); lt.setHours(0,0,0,0); if(lt.getTime()===today.getTime()) todayCount++; }
+    if(p.appt){ const d=parseLocalDate(p.appt['วันนัด']); d.setHours(0,0,0,0); const diff=Math.round((d-today)/(1000*60*60*24)); if(diff>=0&&diff<=7) alertCount++; }
+  });
+  document.getElementById('dr-today').textContent = todayCount;
+  document.getElementById('dr-alert').textContent = alertCount;
+  const losses = DR_PTS.filter(p=>p.sw&&p.cw&&p.sw!==p.cw).map(p=>p.sw-p.cw);
+  document.getElementById('dr-avg').textContent = losses.length ? '-'+(losses.reduce((a,b)=>a+b,0)/losses.length).toFixed(1)+' kg' : '--';
+}
+
+function renderFeed(){
+  const feed = document.getElementById('dr-feed');
+  feed.innerHTML = '';
+  // แสดง 15 รายการล่าสุด
+  const sorted = [...LOGS].reverse().slice(0,15);
+  if(!sorted.length){ feed.innerHTML='<div style="text-align:center;padding:24px 0;color:var(--g3);font-size:15px">ยังไม่มีการบันทึก</div>'; return; }
+  const today = new Date(); today.setHours(0,0,0,0);
+  sorted.forEach(row=>{
+    const t = new Date(row['เวลา']);
+    t.setHours(0,0,0,0);
+    const isNew = t.getTime()===today.getTime();
+    const fi = document.createElement('div');
+    fi.className = 'fi'+(isNew?' new':'');
+    const timeStr = isNew ? 'วันนี้ '+(new Date(row['เวลา'])).getHours()+':'+(String((new Date(row['เวลา'])).getMinutes()).padStart(2,'0')) : t.getDate()+' '+THM[t.getMonth()];
+    fi.innerHTML = `<div class="fi-t">${timeStr}</div><div><div class="fi-pt">${row['ชื่อ']||'--'}</div><div class="fi-d">${row['น้ำหนัก(kg)']||'--'} kg${row['รอบเอว(cm)']?' · เอว '+row['รอบเอว(cm)']+' cm':''}${row['ยา']?` · <span style="color:var(--amd);font-weight:600">${row['ยา'].split(' ')[0]}${row['ขนาดยา(mg)']?' '+row['ขนาดยา(mg)']+' mg':''}` +`</span>`:''}${row['หมายเหตุ']?' · "'+String(row['หมายเหตุ']).slice(0,18)+'"':''}</div></div>`;
+    feed.appendChild(fi);
+  });
+}
+
+// ── SELECT & RENDER DETAIL ────────────────────────────────────────────────
+function drSelect(row,idx){
+  document.querySelectorAll('.pt-row').forEach(r=>r.classList.remove('sel'));
+  row.classList.add('sel'); drSel=idx; drRender(idx);
+}
+function drRender(idx){
+  if(idx<0||idx>=DR_PTS.length) return;
+  const p = DR_PTS[idx];
+  document.getElementById('dr-detail').style.display='block';
+  const av = p.nm.substring(0,2);
+  const avcs=['dao','dab','dag'];
+  const avEl = document.getElementById('dr-av');
+  avEl.className='det-av '+avcs[idx%3]; avEl.textContent=av;
+  document.getElementById('dr-nm').textContent = p.nm;
+  // แสดงวันเริ่มยาเป็น พ.ศ. ถ้าเป็น YYYY-MM-DD
+  let sinceDisp = p.since||'';
+  if(/^\d{4}-\d{2}-\d{2}$/.test(sinceDisp)){
+    const sp = sinceDisp.split('-');
+    sinceDisp = parseInt(sp[2])+' '+THM[parseInt(sp[1])-1]+' '+(parseInt(sp[0])+543);
+  }
+  document.getElementById('dr-mt').textContent = 'HN: '+p.hn+' · '+p.drug+(p.dose&&p.dose!=='--'?' '+p.dose+' mg':'')+(sinceDisp?' · เริ่ม '+sinceDisp:'');
+  const wdiff = p.sw&&p.cw ? (p.sw-p.cw).toFixed(1) : '--';
+  const wstdiff = p.swst&&p.cwst ? (p.swst-p.cwst).toFixed(1) : '--';
+  const bmi = p.cw&&p.ht ? (p.cw/((p.ht/100)**2)).toFixed(1) : '--';
+  const bmiStart = p.sw&&p.ht ? (p.sw/((p.ht/100)**2)).toFixed(1) : '--';
+  const pct = p.sw&&p.cw ? ((p.sw-p.cw)/p.sw*100).toFixed(1) : '--';
+  document.getElementById('dr-stats').innerHTML=`
+    <div class="s4b"><div class="s4l">น้ำหนัก</div><div class="s4v">${p.cw||'--'} kg</div><div class="s4c sm-gd">${wdiff!=='--'?'-'+wdiff+' kg':''}</div></div>
+    <div class="s4b"><div class="s4l">รอบเอว</div><div class="s4v">${p.cwst||'--'} cm</div><div class="s4c sm-gd">${wstdiff!=='--'?'-'+wstdiff+' cm':''}</div></div>
+    <div class="s4b"><div class="s4l">BMI</div><div class="s4v">${bmi}</div><div class="s4c" style="color:var(--g3)">${bmiStart!=='--'?'จาก '+bmiStart:''}</div></div>
+    <div class="s4b"><div class="s4l">% ลด</div><div class="s4v">${pct!=='--'?pct+'%':'--'}</div><div class="s4c" style="color:var(--g3)">เป้า 10%</div></div>`;
+  document.getElementById('dr-ew').value = p.cw||'';
+  document.getElementById('dr-ewst').value = p.cwst||'';
+  document.getElementById('dr-eht').value = p.ht||'';
+  // set drug/dose dropdowns to current patient value
+  const drugSel = document.getElementById('dr-edrug');
+  const doseSel = document.getElementById('dr-edose');
+  if(p.drug) for(let i=0;i<drugSel.options.length;i++) if(drugSel.options[i].value===p.drug){ drugSel.selectedIndex=i; break; }
+  if(p.dose) for(let i=0;i<doseSel.options.length;i++) if(doseSel.options[i].value===String(p.dose)){ doseSel.selectedIndex=i; break; }
+  document.getElementById('dr-ec').style.display='none';
+  // Appointment
+  renderApptArea(p);
+  // Chart
+  buildDrChart(p);
+  // Drug history
+  buildDrDrugHistory(p);
+  // Metrics history
+  buildDrMetricsTable(p);
+}
+
+function renderApptArea(p){
+  const area = document.getElementById('dr-appt-area');
+  const cancelBtn = document.getElementById('cancel-appt-btn');
+  if(!p.appt){ area.innerHTML='<div style="font-size:14px;color:var(--g3);margin-bottom:8px">ยังไม่มีวันนัด</div>'; cancelBtn.style.display='none'; return; }
+  cancelBtn.style.display='inline-block';
+  const today=new Date(); today.setHours(0,0,0,0);
+  const d=parseLocalDate(p.appt['วันนัด']); d.setHours(0,0,0,0);
+  const diff=Math.round((d-today)/(1000*60*60*24));
+  const parts=(p.appt['วันนัด']||'').split('-');
+  const thDate=parts.length===3?parseInt(parts[2])+' '+THM[parseInt(parts[1])-1]+' '+(parseInt(parts[0])+543):p.appt['วันนัด'];
+  const isUrgent = diff>=0&&diff<=3;
+  const isPast = diff<0;
+  area.innerHTML=`
+    <div class="${isPast||isUrgent?'appt-box-alert':'appt-box'}">
+      <div style="font-size:15px;font-weight:600;color:var(--amdk)">📅 ${thDate} ${p.appt['ตั้งโดย']==='patient'?'(คนไข้ขอนัด)':'(แพทย์กำหนด)'}</div>
+      ${p.appt['หมายเหตุ']?`<div style="font-size:13px;color:var(--amd);margin-top:3px">${p.appt['หมายเหตุ']}</div>`:''}
+      ${isUrgent?`<div style="font-size:13px;color:var(--rd);font-weight:600;margin-top:4px">🔔 ${diff===0?'วันนี้คือวันนัด!':'อีก '+diff+' วัน!'}</div>`:''}
+      ${isPast?`<div style="font-size:13px;color:var(--rd);font-weight:600;margin-top:4px">⚠️ เลยวันนัดแล้ว ${Math.abs(diff)} วัน</div>`:''}
+    </div>`;
+}
+
+// ── CHART WITH MODE TOGGLE ─────────────────────────────────────────────────
+function switchDrChart(mode, btn){
+  drChartMode = mode;
+  document.querySelectorAll('.ctog').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  if(drSel>=0) buildDrChart(DR_PTS[drSel]);
+}
+function buildDrChart(p){
+  if(drChart){ drChart.destroy(); drChart=null; }
+  const logs = (p.allLogs||[]).filter(l=>l.w>0);
+
+  // สร้าง allPoints โดยเริ่มจากวันเริ่มยา (sw) เป็น point แรก
+  const allPoints = [];
+  if(p.since && p.sw){
+    // p.since อาจเป็น "1 ม.ค. 68" หรือ YYYY-MM-DD
+    let sinceLabel = p.since;
+    if(/^\d{4}-\d{2}-\d{2}$/.test(p.since)){
+      const sp = p.since.split('-');
+      sinceLabel = parseInt(sp[2])+'/'+THM[parseInt(sp[1])-1];
+    }
+    // เพิ่ม startW เป็น point แรก ยกเว้นถ้า allLogs เก่าสุดเป็นวันเดียวกับ since
+    const oldestISO = logs.length ? (logs[0].dateStr || (logs[0].t ? logs[0].t.toISOString().split('T')[0] : null)) : null;
+    const sinceISO = /^\d{4}-\d{2}-\d{2}$/.test(p.since) ? p.since : null;
+    // skip ถ้า log แรกเป็นวันเดียวกับ since และ weight เท่ากัน (ไม่งั้นแสดง startW เป็น point แยก)
+    const firstLogW = logs.length ? logs[0].w : null;
+    const skip = sinceISO && oldestISO && oldestISO <= sinceISO && firstLogW === p.sw;
+    if(!skip){
+      allPoints.push({lbl:sinceLabel, w:p.sw, wst:p.swst>0?p.swst:null, isStart:true});
+    }
+  }
+  logs.forEach(l=>{
+    const t = l.t || new Date(l.dateStr);
+    allPoints.push({lbl:t.getDate()+'/'+THM[t.getMonth()], w:l.w, wst:l.wst>0?l.wst:null, isStart:false});
+  });
+
+  if(!allPoints.length) return;
+
+  const weightData = allPoints.map(pt=>pt.w);
+  const waistData  = allPoints.map(pt=>pt.wst);
+  const bmiData    = p.ht ? allPoints.map(pt=>parseFloat((pt.w/((p.ht/100)**2)).toFixed(1))) : allPoints.map(()=>null);
+
+  let data, color, unit;
+  if(drChartMode==='waist'){ data=waistData; color='#185FA5'; unit=' cm'; }
+  else if(drChartMode==='bmi'){ data=bmiData; color='#1D9E75'; unit=''; }
+  else { data=weightData; color='#EF9F27'; unit=' kg'; }
+
+  const validPairs = allPoints.map((pt,i)=>({pt,v:data[i]})).filter(x=>x.v!==null&&x.v>0);
+  if(!validPairs.length) return;
+  const vd = validPairs.map(x=>x.v);
+  // จุดเริ่มยา = สีเขียว ใหญ่กว่าเล็กน้อย
+  const ptBg = validPairs.map(x=>x.pt.isStart?'#1D9E75':color);
+  const ptR  = validPairs.map(x=>x.pt.isStart?6:4);
+
+  drChart = new Chart(document.getElementById('drChart'),{
+    type:'line',
+    data:{labels:validPairs.map(x=>x.pt.lbl),datasets:[{
+      data:vd, borderColor:color, backgroundColor:color+'18',
+      tension:0.35, fill:true, pointBackgroundColor:ptBg,
+      pointRadius:ptR, pointBorderWidth:0, spanGaps:true
+    }]},
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{display:false}, tooltip:{callbacks:{label:c=>c.parsed.y.toFixed(1)+unit}}},
+      scales:{
+        y:{min:Math.floor(Math.min(...vd))-2, max:Math.ceil(Math.max(...vd))+2,
+           ticks:{font:{size:12},color:'#888'}, grid:{color:'rgba(0,0,0,0.04)'}},
+        x:{ticks:{font:{size:11},color:'#888',maxRotation:45}, grid:{display:false}}
+      }
+    }
+  });
+}
+
+// ── DRUG HISTORY ──────────────────────────────────────────────────────────
+function buildDrDrugHistory(p){
+  const tl = document.getElementById('dr-drug-tl');
+  tl.innerHTML = '';
+  const logs = p.allLogs||[];
+  if(!logs.length){ tl.innerHTML='<div class="no-data-row">ยังไม่มีข้อมูล</div>'; return; }
+
+  // หา drug change events: เริ่มต้น + ทุกครั้งที่เปลี่ยน
+  const events = [];
+  // เพิ่ม profile เริ่มต้น
+  if(p.since || p.sw){ events.push({date:p.since||'เริ่มต้น', drug:p.drug, dose:p.dose, isStart:true}); }
+  let prevDrug='', prevDose='';
+  logs.forEach(l=>{
+    if(!l.drug) return;
+    if(l.drug!==prevDrug || l.dose!==prevDose){
+      const t = l.t || new Date(l.dateStr);
+      events.push({
+        date: t.getDate()+' '+THM[t.getMonth()]+' '+(t.getFullYear()+543),
+        drug: l.drug, dose: l.dose,
+        isNew: !!(prevDrug && l.drug!==prevDrug),
+        isDoseUp: !!(prevDose && l.dose && parseFloat(l.dose)>parseFloat(prevDose))
+      });
+      prevDrug = l.drug; prevDose = l.dose;
+    }
+  });
+  if(!events.length){ tl.innerHTML='<div class="no-data-row">ยังไม่มีข้อมูลการปรับยา<br><small style="font-size:12px;opacity:.6">ข้อมูลยาจะปรากฏเมื่อคนไข้บันทึกยาจากแอป</small></div>'; return; }
+
+  events.forEach(e=>{
+    const div = document.createElement('div');
+    div.className = 'dtl-item';
+    div.innerHTML = `
+      <div class="dtl-dot${e.isStart?' start':''}"></div>
+      <div class="dtl-date">${e.date}${e.isStart?' · <span style="color:var(--gn);font-weight:600">เริ่มยา</span>':''}</div>
+      <div style="display:flex;align-items:center;gap:4px;margin-top:2px">
+        <span class="dtl-drug">${e.drug||'--'}</span>
+        <span class="dtl-dose">${e.dose?e.dose+' mg':''}</span>
+        ${e.isNew?'<span class="dtl-badge dtl-new">เปลี่ยนยา</span>':''}
+        ${e.isDoseUp?'<span class="dtl-badge dtl-up">↑ เพิ่มขนาด</span>':''}
+      </div>`;
+    tl.appendChild(div);
+  });
+}
+
+// ── METRICS HISTORY TABLE ─────────────────────────────────────────────────
+function buildDrMetricsTable(p){
+  const tbody = document.getElementById('dr-met-body');
+  tbody.innerHTML = '';
+  const logs = p.allLogs||[];
+  if(!logs.length){ tbody.innerHTML='<tr><td colspan="7" class="no-data-row">ยังไม่มีข้อมูล</td></tr>'; return; }
+
+  let prevW=p.sw||0, prevWst=p.swst||0, prevDrug='', prevDose='';
+  // แสดงเรียงจากเก่า→ใหม่
+  logs.forEach((l,i)=>{
+    const bmi = p.ht&&l.w ? (l.w/((p.ht/100)**2)).toFixed(1) : '--';
+    const wDiff = prevW&&l.w ? (l.w-prevW).toFixed(1) : '--';
+    const wstDiff = prevWst&&l.wst>0 ? (l.wst-prevWst).toFixed(1) : '--';
+
+    const wDiffEl = wDiff==='--' ? '<span class="eq">--</span>'
+      : parseFloat(wDiff)<0 ? `<span class="dn">▼${Math.abs(parseFloat(wDiff)).toFixed(1)}</span>`
+      : parseFloat(wDiff)>0 ? `<span class="up">▲${wDiff}</span>`
+      : '<span class="eq">→</span>';
+    const wstDiffEl = wstDiff==='--' ? '<span class="eq">--</span>'
+      : parseFloat(wstDiff)<0 ? `<span class="dn">▼${Math.abs(parseFloat(wstDiff)).toFixed(1)}</span>`
+      : parseFloat(wstDiff)>0 ? `<span class="up">▲${wstDiff}</span>`
+      : '<span class="eq">→</span>';
+
+    const t = l.t || new Date(l.dateStr);
+    const dateStr = t.getDate()+' '+THM[t.getMonth()]+' '+(t.getFullYear()+543);
+    const drugNow = l.drug||prevDrug;
+    const doseNow = l.dose||prevDose;
+    const drugChanged = l.drug && l.drug!==prevDrug;
+    const doseChanged = l.dose && l.dose!==prevDose;
+    const drugEl = drugNow
+      ? `<span class="drug-chip"${drugChanged?' style="background:var(--gnl);color:#27500A"':''}>
+           ${drugNow.split(' ')[0]}</span> ${doseNow?doseNow+' mg':''}
+           ${drugChanged?'<span style="font-size:11px;color:var(--gn)"> ✦เปลี่ยน</span>':''}
+           ${doseChanged&&!drugChanged?'<span style="font-size:11px;color:#B45309"> ↑ปรับ</span>':''}`
+      : '--';
+
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td style="white-space:nowrap">${dateStr}</td><td><b>${l.w.toFixed(1)}</b></td><td>${wDiffEl}</td><td>${bmi}</td><td>${l.wst>0?l.wst.toFixed(1):'--'}</td><td>${wstDiffEl}</td><td style="text-align:left">${drugEl}</td>`;
+    tbody.appendChild(tr);
+    prevW = l.w; if(l.wst>0) prevWst = l.wst;
+    if(l.drug) prevDrug = l.drug; if(l.dose) prevDose = l.dose;
+  });
+}
+
+// ── COLLAPSIBLE ───────────────────────────────────────────────────────────
+function toggleColl(bodyId, arrId){
+  const body = document.getElementById(bodyId);
+  const arr = document.getElementById(arrId);
+  if(body.style.display==='none'){ body.style.display=''; arr.classList.add('open'); }
+  else { body.style.display='none'; arr.classList.remove('open'); }
+}
+
+// ── SAVE DOCTOR EDITS ─────────────────────────────────────────────────────
+async function drSave(){
+  if(drSel<0) return;
+  const p=DR_PTS[drSel];
+  const w=parseFloat(document.getElementById('dr-ew').value);
+  const wst=parseFloat(document.getElementById('dr-ewst').value);
+  const ht=parseFloat(document.getElementById('dr-eht').value);
+  const drug=document.getElementById('dr-edrug').value;
+  const dose=document.getElementById('dr-edose').value.replace(' mg','');
+  if(w&&w>30){ p.cw=w; if(p.ws.length) p.ws[p.ws.length-1]=w; else p.ws.push(w); }
+  if(wst&&wst>40) p.cwst=wst;
+  if(ht>=100) p.ht=ht;
+  p.drug=drug;
+  p.dose=dose;
+
+  // POST ไปยัง Google Sheets ผ่าน Apps Script
+  try {
+    await gasPost({
+      action:'saveLog',
+      name: p.nm,
+      weight: w||p.cw||'',
+      waist: wst||p.cwst||'',
+      height: ht||p.ht||'',
+      drug: drug,
+      dose: dose,
+      startW: p.sw||'',
+      startWaist: p.swst||'',
+      note: ''
+    });
+  } catch(e) {
+    console.warn('drSave gasPost failed:', e);
+  }
+
+  drRender(drSel); renderDrList();
+  const ec=document.getElementById('dr-ec');
+  ec.style.display='block';
+  ec.textContent='✅ อัปเดต '+new Date().getHours()+':'+String(new Date().getMinutes()).padStart(2,'0')+' · '+w+' kg'+(wst?' · เอว '+wst+' cm':'')+(ht?' · '+ht+' cm':'');
+}
+
+// ── ADD PATIENT ────────────────────────────────────────────────────────────
+function openAddModal(){
+  ['add-nm','add-hn','add-since'].forEach(id=>document.getElementById(id).value='');
+  ['add-sw','add-ht','add-swst'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('add-err').style.display='none';
+  document.getElementById('add-modal').classList.add('show');
+}
+function closeAddModal(){ document.getElementById('add-modal').classList.remove('show'); }
+function saveNewPatient(){
+  const nm=document.getElementById('add-nm').value.trim();
+  const hn=document.getElementById('add-hn').value.trim();
+  const sw=parseFloat(document.getElementById('add-sw').value);
+  if(!nm||!hn||!sw){ document.getElementById('add-err').style.display='block'; return; }
+  DR_PTS.push({
+    nm,hn,drug:document.getElementById('add-drug').value,dose:document.getElementById('add-dose').value,
+    since:document.getElementById('add-since').value.trim(),
+    sw,cw:sw,ht:parseFloat(document.getElementById('add-ht').value)||0,
+    swst:parseFloat(document.getElementById('add-swst').value)||0,cwst:parseFloat(document.getElementById('add-swst').value)||0,
+    ws:[sw],wst:[],lb:[THM[new Date().getMonth()]],appt:null,logs:[]
+  });
+  closeAddModal(); renderDrList(); updateSummary();
+  drSel=DR_PTS.length-1;
+  const rows=document.querySelectorAll('.pt-row');
+  if(rows.length) drSelect(rows[rows.length-1],drSel);
+}
+
+// ── APPOINTMENT ────────────────────────────────────────────────────────────
+function openApptModal(){
+  if(drSel<0) return;
+  const p=DR_PTS[drSel];
+  document.getElementById('appt-for').textContent='ผู้ป่วย: '+p.nm;
+  document.getElementById('appt-date-inp').value=p.appt?p.appt['วันนัด']:'';
+  document.getElementById('appt-note-inp').value=p.appt?p.appt['หมายเหตุ']:'';
+  document.getElementById('appt-date-inp').min=(()=>{const n=new Date();return n.getFullYear()+'-'+String(n.getMonth()+1).padStart(2,'0')+'-'+String(n.getDate()).padStart(2,'0');})();
+  document.getElementById('appt-modal').classList.add('show');
+}
+function closeApptModal(){ document.getElementById('appt-modal').classList.remove('show'); }
+async function saveAppt(){
+  const d=document.getElementById('appt-date-inp').value;
+  const note=document.getElementById('appt-note-inp').value.trim();
+  if(!d){alert('กรุณาเลือกวันที่');return;}
+  const p=DR_PTS[drSel];
+  try{
+    await gasPost({action:'saveAppt',ptName:p.nm,date:d,note,setBy:'doctor'});
+  }catch(e){}
+  const apptObj={'ชื่อคนไข้':p.nm,'วันนัด':d,'หมายเหตุ':note,'ตั้งโดย':'doctor'};
+  const idx=APPTS.findIndex(a=>a['ชื่อคนไข้']===p.nm);
+  if(idx>=0) APPTS[idx]=apptObj; else APPTS.push(apptObj);
+  p.appt=apptObj;
+  closeApptModal(); renderApptArea(p); renderDrList(); updateSummary();
+}
+async function cancelAppt(){
+  if(!confirm('ยืนยันการยกเลิกนัดหมาย?')) return;
+  const p=DR_PTS[drSel];
+  const idx=APPTS.findIndex(a=>a['ชื่อคนไข้']===p.nm);
+  if(idx>=0) APPTS.splice(idx,1);
+  p.appt=null;
+  renderApptArea(p); renderDrList(); updateSummary();
+}
+
+// ── GAS ────────────────────────────────────────────────────────────────────
+async function gasGet(action){
+  const res=await fetch(GAS_URL+'?action='+action);
+  return res.json();
+}
+async function gasPost(data){
+  const res=await fetch(GAS_URL,{method:'POST',body:JSON.stringify(data),headers:{'Content-Type':'text/plain'}});
+  return res.json();
+}
+</script>
+</body>
+</html>
